@@ -1,54 +1,5 @@
-/****************************************************************************
-**
-** Copyright (C) 2016 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of the examples of the Qt Toolkit.
-**
-** $QT_BEGIN_LICENSE:BSD$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** BSD License Usage
-** Alternatively, you may use this file under the terms of the BSD license
-** as follows:
-**
-** "Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions are
-** met:
-**   * Redistributions of source code must retain the above copyright
-**     notice, this list of conditions and the following disclaimer.
-**   * Redistributions in binary form must reproduce the above copyright
-**     notice, this list of conditions and the following disclaimer in
-**     the documentation and/or other materials provided with the
-**     distribution.
-**   * Neither the name of The Qt Company Ltd nor the names of its
-**     contributors may be used to endorse or promote products derived
-**     from this software without specific prior written permission.
-**
-**
-** THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-** "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-** LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-** A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-** OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-** SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-** LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-** OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
-
 #include "glwidget.h"
+#include "mesh.h"
 #include <QMouseEvent>
 #include <QOpenGLShaderProgram>
 #include <QCoreApplication>
@@ -61,12 +12,14 @@ GLWidget::GLWidget(QWidget *parent)
       m_xRot(0),
       m_yRot(0),
       m_zRot(0),
-      m_program(0)
+      m_program(0),
+      mesh()
 {
     m_core = QSurfaceFormat::defaultFormat().profile() == QSurfaceFormat::CoreProfile;
     // --transparent causes the clear color to be transparent. Therefore, on systems that
     // support it, the widget will become transparent apart from the logo.
-    if (m_transparent) {
+    if (m_transparent)
+    {
         QSurfaceFormat fmt = format();
         fmt.setAlphaBufferSize(8);
         setFormat(fmt);
@@ -99,9 +52,10 @@ static void qNormalizeAngle(int &angle)
 void GLWidget::setXRotation(int angle)
 {
     qNormalizeAngle(angle);
-    if (angle != m_xRot) {
+    if (angle != m_xRot)
+    {
         m_xRot = angle;
-        //Completer pour emettre un signal
+        // Completer pour emettre un signal
 
         update();
     }
@@ -110,9 +64,10 @@ void GLWidget::setXRotation(int angle)
 void GLWidget::setYRotation(int angle)
 {
     qNormalizeAngle(angle);
-    if (angle != m_yRot) {
+    if (angle != m_yRot)
+    {
         m_yRot = angle;
-        //Completer pour emettre un signal
+        // Completer pour emettre un signal
 
         update();
     }
@@ -121,9 +76,10 @@ void GLWidget::setYRotation(int angle)
 void GLWidget::setZRotation(int angle)
 {
     qNormalizeAngle(angle);
-    if (angle != m_zRot) {
+    if (angle != m_zRot)
+    {
         m_zRot = angle;
-        //Completer pour emettre un signal
+        // Completer pour emettre un signal
 
         update();
     }
@@ -134,7 +90,7 @@ void GLWidget::cleanup()
     if (m_program == nullptr)
         return;
     makeCurrent();
-    m_logoVbo.destroy();
+    // Le destructeur de mesh sera appelé automatiquement
     delete m_program;
     m_program = 0;
     doneCurrent();
@@ -185,11 +141,6 @@ void GLWidget::initializeGL()
     m_vao.create();
     QOpenGLVertexArrayObject::Binder vaoBinder(&m_vao);
 
-    // Setup our vertex buffer object.
-    m_logoVbo.create();
-    m_logoVbo.bind();
-    m_logoVbo.allocate(m_logo.constData(), m_logo.count() * sizeof(GLfloat));
-
     // Store the vertex attribute bindings for the program.
     setupVertexAttribs();
 
@@ -205,13 +156,8 @@ void GLWidget::initializeGL()
 
 void GLWidget::setupVertexAttribs()
 {
-    m_logoVbo.bind();
-    QOpenGLFunctions *f = QOpenGLContext::currentContext()->functions();
-    f->glEnableVertexAttribArray(0);
-    f->glEnableVertexAttribArray(1);
-    f->glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), 0);
-    f->glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(GLfloat), reinterpret_cast<void *>(3 * sizeof(GLfloat)));
-    m_logoVbo.release();
+    // Initialiser le mesh maintenant que le contexte OpenGL est disponible
+    mesh.setupCube();
 }
 
 void GLWidget::paintGL()
@@ -235,7 +181,8 @@ void GLWidget::paintGL()
     // Set normal matrix
     m_program->setUniformValue(m_normal_matrix_loc, normal_matrix);
 
-    glDrawArrays(GL_TRIANGLES, 0, m_logo.vertexCount());
+    // Draw cube geometry
+    mesh.draw();
 
     m_program->release();
 }
@@ -256,10 +203,13 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event)
     int dx = event->x() - m_last_position.x();
     int dy = event->y() - m_last_position.y();
 
-    if (event->buttons() & Qt::LeftButton) {
+    if (event->buttons() & Qt::LeftButton)
+    {
         setXRotation(m_xRot + 8 * dy);
         setYRotation(m_yRot + 8 * dx);
-    } else if (event->buttons() & Qt::RightButton) {
+    }
+    else if (event->buttons() & Qt::RightButton)
+    {
         setXRotation(m_xRot + 8 * dy);
         setZRotation(m_zRot + 8 * dx);
     }

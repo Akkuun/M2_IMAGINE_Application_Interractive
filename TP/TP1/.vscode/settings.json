@@ -1,0 +1,10 @@
+{
+  "files.associations": {
+    "qopenglshaderprogram": "cpp",
+    "stop_token": "cpp",
+    "memory": "cpp",
+    "memory_resource": "cpp",
+    "semaphore": "cpp",
+    "shared_mutex": "cpp"
+  }
+}

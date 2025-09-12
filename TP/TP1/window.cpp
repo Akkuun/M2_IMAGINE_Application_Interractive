@@ -42,6 +42,7 @@ Window::Window(MainWindow *mw)
     zSlider->setValue(0 * 16);
 
     // sliders connect
+    // signal signature : connect(senderVariable, Typesignal, receiver, methode);
     connect(xSlider, &QSlider::valueChanged, this, &Window::setXRotation);
     connect(ySlider, &QSlider::valueChanged, this, &Window::setYRotation);
     connect(zSlider, &QSlider::valueChanged, this, &Window::setZRotation);
