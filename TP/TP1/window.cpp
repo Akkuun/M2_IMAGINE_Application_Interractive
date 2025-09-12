@@ -1,53 +1,3 @@
-/****************************************************************************
-**
-** Copyright (C) 2016 The Qt Company Ltd.
-** Contact: https://www.qt.io/licensing/
-**
-** This file is part of the examples of the Qt Toolkit.
-**
-** $QT_BEGIN_LICENSE:BSD$
-** Commercial License Usage
-** Licensees holding valid commercial Qt licenses may use this file in
-** accordance with the commercial license agreement provided with the
-** Software or, alternatively, in accordance with the terms contained in
-** a written agreement between you and The Qt Company. For licensing terms
-** and conditions see https://www.qt.io/terms-conditions. For further
-** information use the contact form at https://www.qt.io/contact-us.
-**
-** BSD License Usage
-** Alternatively, you may use this file under the terms of the BSD license
-** as follows:
-**
-** "Redistribution and use in source and binary forms, with or without
-** modification, are permitted provided that the following conditions are
-** met:
-**   * Redistributions of source code must retain the above copyright
-**     notice, this list of conditions and the following disclaimer.
-**   * Redistributions in binary form must reproduce the above copyright
-**     notice, this list of conditions and the following disclaimer in
-**     the documentation and/or other materials provided with the
-**     distribution.
-**   * Neither the name of The Qt Company Ltd nor the names of its
-**     contributors may be used to endorse or promote products derived
-**     from this software without specific prior written permission.
-**
-**
-** THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-** "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-** LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-** A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-** OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-** SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-** LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-** DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-** THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-** OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
-**
-** $QT_END_LICENSE$
-**
-****************************************************************************/
-
 #include "glwidget.h"
 #include "window.h"
 #include "mainwindow.h"
@@ -68,10 +18,8 @@ Window::Window(MainWindow *mw)
     ySlider = createSlider();
     zSlider = createSlider();
 
-
-    //A completer, connecter les sliders de cette classe avec le glWidget pour mettre à jour la rotation
-    // et inversement
-
+    // A completer, connecter les sliders de cette classe avec le glWidget pour mettre à jour la rotation
+    //  et inversement
 
     QVBoxLayout *mainLayout = new QVBoxLayout;
     QHBoxLayout *container = new QHBoxLayout;
@@ -93,6 +41,11 @@ Window::Window(MainWindow *mw)
     ySlider->setValue(345 * 16);
     zSlider->setValue(0 * 16);
 
+    // sliders connect
+    connect(xSlider, &QSlider::valueChanged, this, &Window::setXRotation);
+    connect(ySlider, &QSlider::valueChanged, this, &Window::setYRotation);
+    connect(zSlider, &QSlider::valueChanged, this, &Window::setZRotation);
+
     setWindowTitle(tr("Qt OpenGL"));
 }
 
@@ -106,6 +59,33 @@ QSlider *Window::createSlider()
     slider->setTickPosition(QSlider::TicksRight);
     return slider;
 }
+// function to set rotation in GLWidget when slider is moved
+void Window::setXRotation(int angle)
+{
+    glWidget->setXRotation(angle);
+}
+void Window::setYRotation(int angle)
+{
+    glWidget->setYRotation(angle);
+}
+void Window::setZRotation(int angle)
+{
+    glWidget->setZRotation(angle);
+}
+
+// functions to update sliders when rotation changes in GLWidget
+void Window::updateXSlider(int angle)
+{
+    xSlider->setValue(angle);
+}
+void Window::updateYSlider(int angle)
+{
+    ySlider->setValue(angle);
+}
+void Window::updateZSlider(int angle)
+{
+    zSlider->setValue(angle);
+}
 
 void Window::keyPressEvent(QKeyEvent *e)
 {
@@ -117,27 +97,36 @@ void Window::keyPressEvent(QKeyEvent *e)
 
 void Window::dockUndock()
 {
-    if (parent()) {
+    if (parent())
+    {
         setParent(0);
         setAttribute(Qt::WA_DeleteOnClose);
-		QScreen *screen = QApplication::primaryScreen();
-		QRect  screenGeometry = screen->geometry();
-		int screenHeight = screenGeometry.height();
-		int screenWidth = screenGeometry.width();
+        QScreen *screen = QApplication::primaryScreen();
+        QRect screenGeometry = screen->geometry();
+        int screenHeight = screenGeometry.height();
+        int screenWidth = screenGeometry.width();
         move(screenWidth / 2 - width() / 2,
              screenHeight / 2 - height() / 2);
         dockBtn->setText(tr("Dock"));
         show();
-    } else {
-        if (!mainWindow->centralWidget()) {
-            if (mainWindow->isVisible()) {
+    }
+    else
+    {
+        if (!mainWindow->centralWidget())
+        {
+            if (mainWindow->isVisible())
+            {
                 setAttribute(Qt::WA_DeleteOnClose, false);
                 dockBtn->setText(tr("Undock"));
                 mainWindow->setCentralWidget(this);
-            } else {
+            }
+            else
+            {
                 QMessageBox::information(0, tr("Cannot dock"), tr("Main window already closed"));
             }
-        } else {
+        }
+        else
+        {
             QMessageBox::information(0, tr("Cannot dock"), tr("Main window already occupied"));
         }
     }

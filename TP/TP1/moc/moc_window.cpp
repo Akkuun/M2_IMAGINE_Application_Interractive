@@ -40,12 +40,43 @@ template <> constexpr inline auto Window::qt_create_metaobjectdata<qt_meta_tag_Z
     QtMocHelpers::StringRefStorage qt_stringData {
         "Window",
         "dockUndock",
-        ""
+        "",
+        "setXRotation",
+        "angle",
+        "setYRotation",
+        "setZRotation",
+        "updateXSlider",
+        "updateYSlider",
+        "updateZSlider"
     };
 
     QtMocHelpers::UintData qt_methods {
         // Slot 'dockUndock'
         QtMocHelpers::SlotData<void()>(1, 2, QMC::AccessPrivate, QMetaType::Void),
+        // Slot 'setXRotation'
+        QtMocHelpers::SlotData<void(int)>(3, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 4 },
+        }}),
+        // Slot 'setYRotation'
+        QtMocHelpers::SlotData<void(int)>(5, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 4 },
+        }}),
+        // Slot 'setZRotation'
+        QtMocHelpers::SlotData<void(int)>(6, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 4 },
+        }}),
+        // Slot 'updateXSlider'
+        QtMocHelpers::SlotData<void(int)>(7, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 4 },
+        }}),
+        // Slot 'updateYSlider'
+        QtMocHelpers::SlotData<void(int)>(8, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 4 },
+        }}),
+        // Slot 'updateZSlider'
+        QtMocHelpers::SlotData<void(int)>(9, 2, QMC::AccessPrivate, QMetaType::Void, {{
+            { QMetaType::Int, 4 },
+        }}),
     };
     QtMocHelpers::UintData qt_properties {
     };
@@ -70,10 +101,15 @@ void Window::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _id, void
     if (_c == QMetaObject::InvokeMetaMethod) {
         switch (_id) {
         case 0: _t->dockUndock(); break;
+        case 1: _t->setXRotation((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 2: _t->setYRotation((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 3: _t->setZRotation((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 4: _t->updateXSlider((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 5: _t->updateYSlider((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
+        case 6: _t->updateZSlider((*reinterpret_cast< std::add_pointer_t<int>>(_a[1]))); break;
         default: ;
         }
     }
-    (void)_a;
 }
 
 const QMetaObject *Window::metaObject() const
@@ -95,14 +131,14 @@ int Window::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 1)
+        if (_id < 7)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 1;
+        _id -= 7;
     }
     if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 1)
+        if (_id < 7)
             *reinterpret_cast<QMetaType *>(_a[0]) = QMetaType();
-        _id -= 1;
+        _id -= 7;
     }
     return _id;
 }
