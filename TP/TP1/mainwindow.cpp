@@ -59,9 +59,17 @@ MainWindow::MainWindow()
     QMenuBar *menuBar = new QMenuBar;
     QMenu *menuWindow = menuBar->addMenu(tr("&Window"));
     QAction *addNew = new QAction(menuWindow);
-    addNew->setText(tr("Add new mesh"));
+    addNew->setText(tr("Add new window"));
     menuWindow->addAction(addNew);
     connect(addNew, &QAction::triggered, this, &MainWindow::onAddNew);
+
+    // menu mesh
+
+    QMenu *menuMesh = menuBar->addMenu(tr("&Mesh"));
+    QAction *addNewMesh = new QAction(menuMesh);
+    addNewMesh->setText(tr("Add new mesh"));
+    menuMesh->addAction(addNewMesh);
+
     setMenuBar(menuBar);
 
     onAddNew();
