@@ -11,6 +11,7 @@ public:
     ~Mesh();
     void draw();
     void setupCube();
+    void cleanup();
 
 private:
     QOpenGLBuffer vbo; // vertexBuffer

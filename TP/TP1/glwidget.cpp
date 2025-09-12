@@ -90,7 +90,8 @@ void GLWidget::cleanup()
     if (m_program == nullptr)
         return;
     makeCurrent();
-    // Le destructeur de mesh sera appelé automatiquement
+    // Nettoyer explicitement le mesh avant de perdre le contexte
+    mesh.cleanup();
     delete m_program;
     m_program = 0;
     doneCurrent();

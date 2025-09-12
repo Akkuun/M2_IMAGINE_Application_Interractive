@@ -1,5 +1,6 @@
 #include "mesh.h"
 #include <QOpenGLFunctions>
+#include <QOpenGLContext>
 // Constructor
 Mesh::Mesh() : vbo(QOpenGLBuffer::VertexBuffer), ibo(QOpenGLBuffer::IndexBuffer)
 {
@@ -8,13 +9,22 @@ Mesh::Mesh() : vbo(QOpenGLBuffer::VertexBuffer), ibo(QOpenGLBuffer::IndexBuffer)
 // Destructor
 Mesh::~Mesh()
 {
-    if (vbo.isCreated())
+    cleanup();
+}
+
+void Mesh::cleanup()
+{
+    // Vérifier qu'un contexte OpenGL est disponible avant de détruire les buffers
+    if (QOpenGLContext::currentContext())
     {
-        vbo.destroy();
-    }
-    if (ibo.isCreated())
-    {
-        ibo.destroy();
+        if (vbo.isCreated())
+        {
+            vbo.destroy();
+        }
+        if (ibo.isCreated())
+        {
+            ibo.destroy();
+        }
     }
 }
 
