@@ -19,6 +19,8 @@ class Window : public QWidget
 public:
     Window(MainWindow *mw);
 
+    GLWidget *getGLWidget() { return glWidget; }
+
 protected:
     void keyPressEvent(QKeyEvent *event) override;
 
@@ -32,7 +34,6 @@ private slots:
     void updateXSlider(int angle);
     void updateYSlider(int angle);
     void updateZSlider(int angle);
-    
 
 private:
     QSlider *createSlider();

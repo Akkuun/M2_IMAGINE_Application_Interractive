@@ -12,6 +12,9 @@ public:
     void draw();
     void setupCube();
     void cleanup();
+    void loadOFF(const QString &fileName);
+    void loadOFFFile(const QString &fileName);
+    bool isEmpty() const;
 
 private:
     QOpenGLBuffer vbo; // vertexBuffer

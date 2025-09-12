@@ -74,6 +74,11 @@ public:
     QSize minimumSizeHint() const override;
     QSize sizeHint() const override;
 
+    void loadMesh(const QString &fileName);
+    void loadOFF(const QString &fileName);
+
+    
+
 public slots:
     //Completer : ajouter des slots pour signaler appliquer le changement de rotation
     void setXRotation(int angle);

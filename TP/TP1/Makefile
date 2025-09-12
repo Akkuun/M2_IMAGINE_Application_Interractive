@@ -820,7 +820,9 @@ obj/window.o: window.cpp glwidget.h \
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/window.o window.cpp
 
 obj/mainwindow.o: mainwindow.cpp mainwindow.h \
-		window.h
+		window.h \
+		glwidget.h \
+		mesh.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/mainwindow.o mainwindow.cpp
 
 obj/logo.o: logo.cpp logo.h

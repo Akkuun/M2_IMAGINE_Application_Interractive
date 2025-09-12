@@ -157,8 +157,11 @@ void GLWidget::initializeGL()
 
 void GLWidget::setupVertexAttribs()
 {
-    // Initialiser le mesh maintenant que le contexte OpenGL est disponible
-    mesh.setupCube();
+    // Initialiser le mesh seulement s'il est vide (pas de mesh chargé)
+    if (mesh.isEmpty())
+    {
+        mesh.setupCube();
+    }
 }
 
 void GLWidget::paintGL()
@@ -215,4 +218,14 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event)
         setZRotation(m_zRot + 8 * dx);
     }
     m_last_position = event->pos();
+}
+
+void GLWidget::loadMesh(const QString &fileName)
+{
+    makeCurrent(); // Assurer que le contexte OpenGL est courant avant de manipuler des ressources OpenGL
+    mesh.loadOFF(fileName);
+    // setupVertexAttribs() n'est plus nécessaire car loadOFF() configure déjà les buffers
+    // Si le chargement échoue, le mesh restera vide et setupVertexAttribs() créera un cube par défaut
+    setupVertexAttribs();
+    update();
 }
