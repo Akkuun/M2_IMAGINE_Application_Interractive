@@ -48,10 +48,9 @@ void Mesh::compute_skinning_weights(Skeleton &skeleton)
     // you should compute weights for each vertex w.r.t. the skeleton bones
     // so each vertex will have B weights (B = number of bones)
     // these weights shoud be stored in vertex.w:
-    // si pi est lié aux os j et k
-    // pi' = w pij´ + (1-w) pik´ avec w dans [0,1]
 
     unsigned int B = skeleton.bones.size();
+    int n = 10; // parametre pour l'influence de la distance sur le poids
     for (unsigned int i = 0; i < V.size(); ++i)
     {
         // l'idée s'est de parcourir tout les os, et calculer la distance entre le vertex et l'os,
@@ -66,16 +65,15 @@ void Mesh::compute_skinning_weights(Skeleton &skeleton)
 
             Vec3 distanceArticulation1 = poid - articulation1;                 // vecteur entre le vertex et l'articulation 1
             Vec3 articulation1ToArticulation2 = articulation2 - articulation1; // vecteur entre les deux articulations pour avoir le segment articulation 1 et 2
-            // projection orthogonale de point sur le segment articulation1-articulation2
-            // formule : t = (distanceArticulation1 . articulation1ToArticulation2) / ||articulation1ToArticulation2||^2
+
             float t = Vec3::dot(distanceArticulation1, articulation1ToArticulation2) / articulation1ToArticulation2.squareLength();
-            t = std::max(0.f, std::min(1.f, t)); // on clamp t entre 0 et 1 pour rester sur le segment
-            // point projeté
-            Vec3 projection = articulation1 + t * articulation1ToArticulation2;
-            float distance = (poid - projection).length();
-            V[i].w[j] = 1.f / (distance + 1e-5f); // on ajoute un petit epsilon pour éviter la division par 0
-            V[i].w[j] *= V[i].w[j];               // on élève au carré le poids car on veut que l'influence diminue rapidement avec la distance
+            t = std::max(0.f, std::min(1.f, t));
+            Vec3 proj = articulation1 + t * articulation1ToArticulation2; // projection orthogonale du vertex sur le segment
+            float distance = (poid - proj).length();
+            // calcul du poids
+            V[i].w[j] = pow((1.0 / (distance)), n); // on ajoute un petit epsilon pour eviter la division par 0
             sommePoids += V[i].w[j];
+            // poids i, j  = (1/ distanceij)^n
         }
         // Normalisation des poids pour rester entre 0 et 1
         for (unsigned int j = 0; j < B; ++j)
@@ -113,20 +111,28 @@ void Mesh::drawTransformedMesh(SkeletonTransformation &transfo) const
     std::vector<Vec3> new_positions(V.size());
     std::vector<Vec3> new_normals(V.size());
 
-    //---------------------------------------------------//
-    //---------------------------------------------------//
-    // code to change :
-    for (unsigned int i = 0; i < V.size(); ++i)
+    for (unsigned int i = 0; i < V.size(); i++) // on calcul pour chaque os
     {
-        Vec3 p = V[i].p;
-        Vec3 n = V[i].n;
+        new_positions[i] = Vec3(0, 0, 0);
+        new_normals[i] = Vec3(0, 0, 0);
 
-        // Indications:
-        // you should use the skinning weights to blend the transformations of the vertex position by the bones.
+        for (unsigned int j = 0; j < transfo.bone_transformations.size(); j++) // pour chaque os
+        {
+            // pi = somme sur j ( poids(i,j) * ( Rj * pi + tj ) )
+            Vec3 poid = V[i].p;                                               // position du vertex i
+            Vec3 normal = V[i].n;                                             // normale du vertex i
+            Mat3 R = transfo.bone_transformations[j].world_space_rotation;    // matrice de rotation de l'os j
+            Vec3 t = transfo.bone_transformations[j].world_space_translation; // translation de l'os j
+            Vec3 p_transformed = R * poid + t;                                // formule de transformation
+            // pour la normale, on fait l'inverse transpose de la matrice de rotation
+            Vec3 n_transformed = R * normal; // car R est une matrice de rotation, son inverse est son transpose
+            n_transformed.normalize();
 
-        new_positions[i] = p;
-        new_normals[i] = n;
+            new_positions[i] += V[i].w[j] * p_transformed;
+            new_normals[i] += V[i].w[j] * n_transformed;
+        }
     }
+
     //---------------------------------------------------//
     //---------------------------------------------------//
     //---------------------------------------------------//
