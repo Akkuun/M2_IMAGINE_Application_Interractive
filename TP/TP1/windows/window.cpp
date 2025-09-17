@@ -14,19 +14,12 @@ Window::Window(MainWindow *mw)
 {
     glWidget = new GLWidget;
 
-    xSlider = createSlider();
-    ySlider = createSlider();
-    zSlider = createSlider();
-
     // A completer, connecter les sliders de cette classe avec le glWidget pour mettre à jour la rotation
     //  et inversement
 
     QVBoxLayout *mainLayout = new QVBoxLayout;
     QHBoxLayout *container = new QHBoxLayout;
     container->addWidget(glWidget);
-    container->addWidget(xSlider);
-    container->addWidget(ySlider);
-    container->addWidget(zSlider);
 
     QWidget *w = new QWidget;
     w->setLayout(container);
@@ -36,16 +29,6 @@ Window::Window(MainWindow *mw)
     mainLayout->addWidget(dockBtn);
 
     setLayout(mainLayout);
-
-    xSlider->setValue(15 * 16);
-    ySlider->setValue(345 * 16);
-    zSlider->setValue(0 * 16);
-
-    // sliders connect
-    // signal signature : connect(senderVariable, Typesignal, receiver, methode);
-    connect(xSlider, &QSlider::valueChanged, this, &Window::setXRotation);
-    connect(ySlider, &QSlider::valueChanged, this, &Window::setYRotation);
-    connect(zSlider, &QSlider::valueChanged, this, &Window::setZRotation);
 
     setWindowTitle(tr("Qt OpenGL"));
 }

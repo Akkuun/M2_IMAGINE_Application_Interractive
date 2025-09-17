@@ -13,8 +13,11 @@ GLWidget::GLWidget(QWidget *parent)
       m_yRot(0),
       m_zRot(0),
       m_program(0),
-      mesh()
+      mesh(),
+      m_cameraDistance(1.0f) // Distance initiale de la caméra
 {
+    setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    setMinimumSize(1, 1);
     m_core = QSurfaceFormat::defaultFormat().profile() == QSurfaceFormat::CoreProfile;
     // --transparent causes the clear color to be transparent. Therefore, on systems that
     // support it, the widget will become transparent apart from the logo.
@@ -56,6 +59,7 @@ void GLWidget::setXRotation(int angle)
     {
         m_xRot = angle;
         // Completer pour emettre un signal
+        emit xRotationChanged(m_xRot);
 
         update();
     }
@@ -68,6 +72,7 @@ void GLWidget::setYRotation(int angle)
     {
         m_yRot = angle;
         // Completer pour emettre un signal
+        emit yRotationChanged(m_yRot);
 
         update();
     }
@@ -80,6 +85,7 @@ void GLWidget::setZRotation(int angle)
     {
         m_zRot = angle;
         // Completer pour emettre un signal
+        emit zRotationChanged(m_zRot);
 
         update();
     }
@@ -141,17 +147,12 @@ void GLWidget::initializeGL()
     // sure there is a VAO when one is needed.
     m_vao.create();
     QOpenGLVertexArrayObject::Binder vaoBinder(&m_vao);
-
-    // Store the vertex attribute bindings for the program.
     setupVertexAttribs();
 
-    // Our camera never changes in this example.
     m_view.setToIdentity();
-    m_view.translate(0, 0, -1);
+    m_view.translate(0, 0, -m_cameraDistance); // Utilise la distance caméra
 
-    // Light position is fixed.
     m_program->setUniformValue(m_light_pos_loc, QVector3D(0, 0, 70));
-
     m_program->release();
 }
 
@@ -178,16 +179,14 @@ void GLWidget::paintGL()
     QOpenGLVertexArrayObject::Binder vaoBinder(&m_vao);
     m_program->bind();
 
-    // Set modelview-projection matrix
+    // Met à jour la vue avec la distance caméra
+    m_view.setToIdentity();
+    m_view.translate(0, 0, -m_cameraDistance);
+
     m_program->setUniformValue(m_mvp_matrix_loc, m_projection * m_view * m_model);
     QMatrix3x3 normal_matrix = m_model.normalMatrix();
-
-    // Set normal matrix
     m_program->setUniformValue(m_normal_matrix_loc, normal_matrix);
-
-    // Draw cube geometry
     mesh.draw();
-
     m_program->release();
 }
 
@@ -218,6 +217,18 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event)
         setZRotation(m_zRot + 8 * dx);
     }
     m_last_position = event->pos();
+}
+
+void GLWidget::wheelEvent(QWheelEvent *event)
+{
+    float numDegrees = event->angleDelta().y() / 8.0f;
+    float numSteps = numDegrees / 15.0f;
+    m_cameraDistance -= numSteps * 0.1f;
+    if (m_cameraDistance < 0.2f)
+        m_cameraDistance = 0.2f;
+    if (m_cameraDistance > 10.0f)
+        m_cameraDistance = 10.0f;
+    update();
 }
 
 void GLWidget::loadMesh(const QString &fileName)

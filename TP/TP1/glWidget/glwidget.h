@@ -48,30 +48,74 @@
 **
 ****************************************************************************/
 
-#ifndef LOGO_H
-#define LOGO_H
+#ifndef GLWIDGET_H
+#define GLWIDGET_H
 
-#include <qopengl.h>
-#include <QVector>
-#include <QVector3D>
+#include <QOpenGLWidget>
+#include <QOpenGLFunctions>
+#include <QOpenGLVertexArrayObject>
 #include <QOpenGLBuffer>
+#include <QMatrix4x4>
+#include "mesh.h"
 
-class Logo
+QT_FORWARD_DECLARE_CLASS(QOpenGLShaderProgram)
+
+class GLWidget : public QOpenGLWidget, protected QOpenGLFunctions
 {
+    Q_OBJECT
+
 public:
-    Logo();
-    const GLfloat *constData() const { return m_data.constData(); }
-    int count() const { return m_count; }
-    int vertexCount() const { return m_count / 6; }
+    GLWidget(QWidget *parent = 0);
+    ~GLWidget();
+
+    static bool isTransparent() { return m_transparent; }
+    static void setTransparent(bool t) { m_transparent = t; }
+
+    QSize minimumSizeHint() const override;
+    QSize sizeHint() const override;
+
+    void loadMesh(const QString &fileName);
+    void loadOFF(const QString &fileName);
+
+public slots:
+    // Compléter : ajouter des slots pour signaler appliquer le changement de rotation
+    void setXRotation(int angle);
+    void setYRotation(int angle);
+    void setZRotation(int angle);
+    void cleanup();
+
+signals:
+    void xRotationChanged(int angle);
+    void yRotationChanged(int angle);
+    void zRotationChanged(int angle);
+
+protected:
+    void initializeGL() override;
+    void paintGL() override;
+    void resizeGL(int width, int height) override;
+    void mousePressEvent(QMouseEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
+    void wheelEvent(QWheelEvent *event) override;
 
 private:
-    void quad(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2, GLfloat x3, GLfloat y3, GLfloat x4, GLfloat y4);
-    void extrude(GLfloat x1, GLfloat y1, GLfloat x2, GLfloat y2);
-    void add(const QVector3D &v, const QVector3D &n);
+    void setupVertexAttribs();
 
-    QVector<GLfloat> m_data;
-    int m_count;
-
+    bool m_core;
+    int m_xRot;
+    int m_yRot;
+    int m_zRot;
+    QPoint m_last_position;
+    Mesh mesh;
+    QOpenGLVertexArrayObject m_vao;
+    QOpenGLShaderProgram *m_program;
+    int m_mvp_matrix_loc;
+    int m_normal_matrix_loc;
+    int m_light_pos_loc;
+    QMatrix4x4 m_projection;
+    QMatrix4x4 m_view;
+    QMatrix4x4 m_model;
+    float m_cameraDistance; // Distance de la caméra pour le zoom
+    static bool m_transparent;
 };
 
-#endif // LOGO_H
+#endif

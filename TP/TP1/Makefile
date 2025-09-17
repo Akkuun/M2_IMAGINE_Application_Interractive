@@ -52,23 +52,19 @@ OBJECTS_DIR   = obj/
 
 ####### Files
 
-SOURCES       = glwidget.cpp \
+SOURCES       = glWidget/glwidget.cpp \
 		main.cpp \
-		window.cpp \
-		mainwindow.cpp \
-		logo.cpp \
-		mesh.cpp qrc_shaders.cpp \
-		moc/moc_glwidget.cpp \
+		windows/window.cpp \
+		windows/mainwindow.cpp \
+		mesh/mesh.cpp qrc_shaders.cpp \
 		moc/moc_window.cpp \
 		moc/moc_mainwindow.cpp
 OBJECTS       = obj/glwidget.o \
 		obj/main.o \
 		obj/window.o \
 		obj/mainwindow.o \
-		obj/logo.o \
 		obj/mesh.o \
 		obj/qrc_shaders.o \
-		obj/moc_glwidget.o \
 		obj/moc_window.o \
 		obj/moc_mainwindow.o
 DIST          = /usr/lib/qt6/mkspecs/features/spec_pre.prf \
@@ -274,15 +270,13 @@ DIST          = /usr/lib/qt6/mkspecs/features/spec_pre.prf \
 		/usr/lib/qt6/mkspecs/features/yacc.prf \
 		/usr/lib/qt6/mkspecs/features/lex.prf \
 		TP1.pro glwidget.h \
-		window.h \
-		mainwindow.h \
-		logo.h \
-		mesh.h glwidget.cpp \
+		windows/window.h \
+		windows/mainwindow.h \
+		mesh/mesh.h glWidget/glwidget.cpp \
 		main.cpp \
-		window.cpp \
-		mainwindow.cpp \
-		logo.cpp \
-		mesh.cpp
+		windows/window.cpp \
+		windows/mainwindow.cpp \
+		mesh/mesh.cpp
 QMAKE_TARGET  = TP1
 DESTDIR       = 
 TARGET        = TP1
@@ -497,7 +491,7 @@ Makefile: TP1.pro /usr/lib/qt6/mkspecs/linux-g++/qmake.conf /usr/lib/qt6/mkspecs
 		/usr/lib/qt6/mkspecs/features/yacc.prf \
 		/usr/lib/qt6/mkspecs/features/lex.prf \
 		TP1.pro \
-		shaders.qrc \
+		shaders/shaders.qrc \
 		/usr/lib/libQt6OpenGLWidgets.prl \
 		/usr/lib/libQt6Widgets.prl \
 		/usr/lib/libQt6OpenGL.prl \
@@ -707,7 +701,7 @@ Makefile: TP1.pro /usr/lib/qt6/mkspecs/linux-g++/qmake.conf /usr/lib/qt6/mkspecs
 /usr/lib/qt6/mkspecs/features/yacc.prf:
 /usr/lib/qt6/mkspecs/features/lex.prf:
 TP1.pro:
-shaders.qrc:
+shaders/shaders.qrc:
 /usr/lib/libQt6OpenGLWidgets.prl:
 /usr/lib/libQt6Widgets.prl:
 /usr/lib/libQt6OpenGL.prl:
@@ -727,10 +721,10 @@ dist: distdir FORCE
 distdir: FORCE
 	@test -d $(DISTDIR) || mkdir -p $(DISTDIR)
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
-	$(COPY_FILE) --parents shaders.qrc $(DISTDIR)/
+	$(COPY_FILE) --parents shaders/shaders.qrc $(DISTDIR)/
 	$(COPY_FILE) --parents /usr/lib/qt6/mkspecs/features/data/dummy.cpp $(DISTDIR)/
-	$(COPY_FILE) --parents glwidget.h window.h mainwindow.h logo.h mesh.h $(DISTDIR)/
-	$(COPY_FILE) --parents glwidget.cpp main.cpp window.cpp mainwindow.cpp logo.cpp mesh.cpp $(DISTDIR)/
+	$(COPY_FILE) --parents glwidget.h windows/window.h windows/mainwindow.h mesh/mesh.h $(DISTDIR)/
+	$(COPY_FILE) --parents glWidget/glwidget.cpp main.cpp windows/window.cpp windows/mainwindow.cpp mesh/mesh.cpp $(DISTDIR)/
 
 
 clean: compiler_clean 
@@ -757,11 +751,11 @@ benchmark: first
 compiler_rcc_make_all: qrc_shaders.cpp
 compiler_rcc_clean:
 	-$(DEL_FILE) qrc_shaders.cpp
-qrc_shaders.cpp: shaders.qrc \
+qrc_shaders.cpp: shaders/shaders.qrc \
 		/usr/lib/qt6/rcc \
-		vshader.glsl \
-		fshader.glsl
-	/usr/lib/qt6/rcc -name shaders shaders.qrc -o qrc_shaders.cpp
+		shaders/vshader.glsl \
+		shaders/fshader.glsl
+	/usr/lib/qt6/rcc -name shaders shaders/shaders.qrc -o qrc_shaders.cpp
 
 compiler_moc_predefs_make_all: moc/moc_predefs.h
 compiler_moc_predefs_clean:
@@ -769,24 +763,18 @@ compiler_moc_predefs_clean:
 moc/moc_predefs.h: /usr/lib/qt6/mkspecs/features/data/dummy.cpp
 	g++ -pipe -g -g -O0 -std=gnu++1z -Wall -Wextra -dM -E -o moc/moc_predefs.h /usr/lib/qt6/mkspecs/features/data/dummy.cpp
 
-compiler_moc_header_make_all: moc/moc_glwidget.cpp moc/moc_window.cpp moc/moc_mainwindow.cpp
+compiler_moc_header_make_all: moc/moc_window.cpp moc/moc_mainwindow.cpp
 compiler_moc_header_clean:
-	-$(DEL_FILE) moc/moc_glwidget.cpp moc/moc_window.cpp moc/moc_mainwindow.cpp
-moc/moc_glwidget.cpp: glwidget.h \
-		mesh.h \
+	-$(DEL_FILE) moc/moc_window.cpp moc/moc_mainwindow.cpp
+moc/moc_window.cpp: windows/window.h \
 		moc/moc_predefs.h \
 		/usr/lib/qt6/moc
-	/usr/lib/qt6/moc $(DEFINES) --include /home/mathis/Programming/ProgInterface/TP/TP1/moc/moc_predefs.h -I/usr/lib/qt6/mkspecs/linux-g++ -I/home/mathis/Programming/ProgInterface/TP/TP1 -I/home/mathis/Programming/ProgInterface/TP/TP1 -I/usr/include/qt6 -I/usr/include/qt6/QtOpenGLWidgets -I/usr/include/qt6/QtWidgets -I/usr/include/qt6/QtOpenGL -I/usr/include/qt6/QtGui -I/usr/include/qt6/QtCore -I/usr/include/c++/9 -I/usr/include/x86_64-linux-gnu/c++/9 -I/usr/include/c++/9/backward -I/usr/lib/gcc/x86_64-linux-gnu/9/include -I/usr/local/include -I/usr/include/x86_64-linux-gnu -I/usr/include glwidget.h -o moc/moc_glwidget.cpp
+	/usr/lib/qt6/moc $(DEFINES) --include /home/mathis/Programming/ProgInterface/TP/TP1/moc/moc_predefs.h -I/usr/lib/qt6/mkspecs/linux-g++ -I/home/mathis/Programming/ProgInterface/TP/TP1 -I/home/mathis/Programming/ProgInterface/TP/TP1 -I/usr/include/qt6 -I/usr/include/qt6/QtOpenGLWidgets -I/usr/include/qt6/QtWidgets -I/usr/include/qt6/QtOpenGL -I/usr/include/qt6/QtGui -I/usr/include/qt6/QtCore -I/usr/include/c++/9 -I/usr/include/x86_64-linux-gnu/c++/9 -I/usr/include/c++/9/backward -I/usr/lib/gcc/x86_64-linux-gnu/9/include -I/usr/local/include -I/usr/include/x86_64-linux-gnu -I/usr/include windows/window.h -o moc/moc_window.cpp
 
-moc/moc_window.cpp: window.h \
+moc/moc_mainwindow.cpp: windows/mainwindow.h \
 		moc/moc_predefs.h \
 		/usr/lib/qt6/moc
-	/usr/lib/qt6/moc $(DEFINES) --include /home/mathis/Programming/ProgInterface/TP/TP1/moc/moc_predefs.h -I/usr/lib/qt6/mkspecs/linux-g++ -I/home/mathis/Programming/ProgInterface/TP/TP1 -I/home/mathis/Programming/ProgInterface/TP/TP1 -I/usr/include/qt6 -I/usr/include/qt6/QtOpenGLWidgets -I/usr/include/qt6/QtWidgets -I/usr/include/qt6/QtOpenGL -I/usr/include/qt6/QtGui -I/usr/include/qt6/QtCore -I/usr/include/c++/9 -I/usr/include/x86_64-linux-gnu/c++/9 -I/usr/include/c++/9/backward -I/usr/lib/gcc/x86_64-linux-gnu/9/include -I/usr/local/include -I/usr/include/x86_64-linux-gnu -I/usr/include window.h -o moc/moc_window.cpp
-
-moc/moc_mainwindow.cpp: mainwindow.h \
-		moc/moc_predefs.h \
-		/usr/lib/qt6/moc
-	/usr/lib/qt6/moc $(DEFINES) --include /home/mathis/Programming/ProgInterface/TP/TP1/moc/moc_predefs.h -I/usr/lib/qt6/mkspecs/linux-g++ -I/home/mathis/Programming/ProgInterface/TP/TP1 -I/home/mathis/Programming/ProgInterface/TP/TP1 -I/usr/include/qt6 -I/usr/include/qt6/QtOpenGLWidgets -I/usr/include/qt6/QtWidgets -I/usr/include/qt6/QtOpenGL -I/usr/include/qt6/QtGui -I/usr/include/qt6/QtCore -I/usr/include/c++/9 -I/usr/include/x86_64-linux-gnu/c++/9 -I/usr/include/c++/9/backward -I/usr/lib/gcc/x86_64-linux-gnu/9/include -I/usr/local/include -I/usr/include/x86_64-linux-gnu -I/usr/include mainwindow.h -o moc/moc_mainwindow.cpp
+	/usr/lib/qt6/moc $(DEFINES) --include /home/mathis/Programming/ProgInterface/TP/TP1/moc/moc_predefs.h -I/usr/lib/qt6/mkspecs/linux-g++ -I/home/mathis/Programming/ProgInterface/TP/TP1 -I/home/mathis/Programming/ProgInterface/TP/TP1 -I/usr/include/qt6 -I/usr/include/qt6/QtOpenGLWidgets -I/usr/include/qt6/QtWidgets -I/usr/include/qt6/QtOpenGL -I/usr/include/qt6/QtGui -I/usr/include/qt6/QtCore -I/usr/include/c++/9 -I/usr/include/x86_64-linux-gnu/c++/9 -I/usr/include/c++/9/backward -I/usr/lib/gcc/x86_64-linux-gnu/9/include -I/usr/local/include -I/usr/include/x86_64-linux-gnu -I/usr/include windows/mainwindow.h -o moc/moc_mainwindow.cpp
 
 compiler_moc_objc_header_make_all:
 compiler_moc_objc_header_clean:
@@ -804,38 +792,25 @@ compiler_clean: compiler_rcc_clean compiler_moc_predefs_clean compiler_moc_heade
 
 ####### Compile
 
-obj/glwidget.o: glwidget.cpp glwidget.h \
-		mesh.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/glwidget.o glwidget.cpp
+obj/glwidget.o: glWidget/glwidget.cpp glWidget/glwidget.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/glwidget.o glWidget/glwidget.cpp
 
-obj/main.o: main.cpp glwidget.h \
-		mesh.h \
-		mainwindow.h
+obj/main.o: main.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/main.o main.cpp
 
-obj/window.o: window.cpp glwidget.h \
-		mesh.h \
-		window.h \
-		mainwindow.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/window.o window.cpp
+obj/window.o: windows/window.cpp windows/window.h \
+		windows/mainwindow.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/window.o windows/window.cpp
 
-obj/mainwindow.o: mainwindow.cpp mainwindow.h \
-		window.h \
-		glwidget.h \
-		mesh.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/mainwindow.o mainwindow.cpp
+obj/mainwindow.o: windows/mainwindow.cpp windows/mainwindow.h \
+		windows/window.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/mainwindow.o windows/mainwindow.cpp
 
-obj/logo.o: logo.cpp logo.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/logo.o logo.cpp
-
-obj/mesh.o: mesh.cpp mesh.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/mesh.o mesh.cpp
+obj/mesh.o: mesh/mesh.cpp mesh/mesh.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/mesh.o mesh/mesh.cpp
 
 obj/qrc_shaders.o: qrc_shaders.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/qrc_shaders.o qrc_shaders.cpp
-
-obj/moc_glwidget.o: moc/moc_glwidget.cpp 
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/moc_glwidget.o moc/moc_glwidget.cpp
 
 obj/moc_window.o: moc/moc_window.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/moc_window.o moc/moc_window.cpp
