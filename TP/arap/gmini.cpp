@@ -356,11 +356,45 @@ void rotateActiveHandle(Vec3 const &rotationAxis, double angle)
 
 void get3DPosFromMouseInput(int x, int y, float &posX, float &posY, float &posZ)
 {
+    // Convert mouse coordinates to normalized device coordinates
+    float viewport[4];
+    glGetFloatv(GL_VIEWPORT, viewport);
+
+    // Normalize mouse coordinates to [-1, 1]
+    float normalizedX = (2.0f * x) / viewport[2] - 1.0f;
+    float normalizedY = 1.0f - (2.0f * y) / viewport[3];
+
+    // Calculate mesh center as reference point
+    Vec3 meshCenter(0.0f, 0.0f, 0.0f);
+    if (mesh.V.size() > 0)
+    {
+        for (unsigned int v = 0; v < mesh.V.size(); ++v)
+        {
+            meshCenter += mesh.V[v].p;
+        }
+        meshCenter = (1.0f / mesh.V.size()) * meshCenter;
+    }
+
+    // Use the mouse position and the depth of the mesh center
+    // Scale the mouse coordinates and add to mesh center
+    posX = normalizedX * 0.5f + meshCenter[0];
+    posY = normalizedY * 0.5f + meshCenter[1];
+    posZ = meshCenter[2];
 }
 
 void setTagForVerticesInSphere(bool tagToSet)
 {
     // check if vertices are inside the sphere
+    for (unsigned int v = 0; v < mesh.V.size(); ++v)
+    {
+        Vec3 const &p = mesh.V[v].p;
+
+        // Check if vertex p is inside the sphere using the contains method
+        if (sphereSelectionTool.contains(p))
+        {
+            verticesAreMarkedForCurrentHandle[v] = tagToSet;
+        }
+    }
 }
 
 void updateSphereRadiusWithScroll(int button)
@@ -517,7 +551,7 @@ void initLight()
 void init()
 {
     viewerState = ViewerState_NORMAL;
-    selectionToolState = SelectionTool_Rectangle;
+    selectionToolState = SelectionTool_Sphere;
     camera.resize(SCREENWIDTH, SCREENHEIGHT);
     initLight();
     glCullFace(GL_BACK);
@@ -724,7 +758,16 @@ void draw()
     glColor3f(0.4, 0.4, 0.8);
     mesh.draw();
     drawHandles();
-    rectangleSelectionTool.draw();
+
+    // Draw the appropriate selection tool based on current state
+    if (selectionToolState == SelectionTool_Rectangle)
+    {
+        rectangleSelectionTool.draw();
+    }
+    else if (selectionToolState == SelectionTool_Sphere)
+    {
+        sphereSelectionTool.draw();
+    }
 }
 
 void display()
@@ -940,8 +983,9 @@ void mouse(int button, int state, int x, int y)
         {
             if (state == GLUT_UP)
             {
-                // then the mouse is released, confirm rectangle editing
+                // then the mouse is released, confirm selection editing
                 rectangleSelectionTool.isActive = false;
+                sphereSelectionTool.isActive = false;
                 addVerticesToCurrentHandle();
             }
             else
@@ -1032,6 +1076,14 @@ void motion(int x, int y)
     if (viewerState == ViewerState_EDITINGHANDLE && rectangleSelectionTool.isActive)
     {
         rectangleSelectionTool.updateRectangle(x, y);
+    }
+    else if (viewerState == ViewerState_EDITINGHANDLE && sphereSelectionTool.isActive)
+    {
+        // Update sphere position to follow mouse
+        float posX, posY, posZ;
+        get3DPosFromMouseInput(x, y, posX, posY, posZ);
+        Vec3 pos(posX, posY, posZ);
+        sphereSelectionTool.updateSphere(pos);
     }
     else
     {
