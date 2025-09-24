@@ -253,88 +253,36 @@ struct Skeleton
 
     void updateIKChain(SkeletonTransformation &transfoIK, unsigned int targetArticulation, Vec3 targetPosition, unsigned int maxIterNumber = 20, double epsilonPrecision = 0.000001)
     {
-        //---------------------------------------------------//
-        //---------------------------------------------------//
-        // code to change :
 
-        // You should orient the articulation towards target position: -> find R
-        // Note: you can use Mat3::getRotationMatrixAligning
-        //---------------------------------------------------//
-        //---------------------------------------------------//
-        //---------------------------------------------------//
-
-        // on utilise l'algorithme CCD ( Cyclic Coordinate Descent )
-        // le but est d'atteindre targetPosition
-
-        // on parcourt toute jusqu'a la racine ou alors maximum d'itérations max atteintes
-
-        // le principe est le meme, on trouve l'articulation la plus proche de la cible
-        // on calcule la rotation a appliquer pour que l'articulation pointe vers la cible
-        // on applique la rotation
-        // on met a jour les positions des articulations
-        // on remonte d´ un cran et on recommence
-
-        // Trouver l’articulation R contenant E
-        // Dessiner un vecteur de R vers D - Déduire l’angle du produit scalaire(inv.Cos) : cos(a) = RD ● RE
-
-        // ducoup fonction récursive avec target qui devient parent et parent devient le parent de target (precedent)
-        // Algorithme CCD (Cyclic Coordinate Descent) avec itérations complètes
-        for (unsigned int iteration = 0; iteration < maxIterNumber; ++iteration)
+        if (!(articulations[targetArticulation].isRoot()))
         {
-            // Vérifier si on a atteint la précision désirée
-            Vec3 currentEndPos = transfoIK.articulations_transformed_position[targetArticulation];
-            if ((currentEndPos - targetPosition).length() < epsilonPrecision)
-                return; // Convergence atteinte
 
-            // Faire une passe complète de la chaîne cinématique
-            unsigned int currentArticulation = targetArticulation;
+            // E = targetArticulatation
 
-            while (!articulations[currentArticulation].isRoot())
+            Vec3 targetArticPos = transfoIK.articulations_transformed_position[targetArticulation]; // position de E
+            int targetId = bones[articulations[targetArticulation].fatherBone].joints[0];
+
+            for (unsigned int i = 0; i < maxIterNumber; i++)
             {
-                Articulation &articulationActuelle = articulations[currentArticulation];
-                unsigned int parentArticulationIndex = bones[articulationActuelle.fatherBone].joints[0];
-
-                // Positions actuelles dans l'espace transformé
-                Vec3 positionArticulationActuelle = transfoIK.articulations_transformed_position[targetArticulation];    // Position de l'end effector
-                Vec3 positionArticulationParent = transfoIK.articulations_transformed_position[parentArticulationIndex]; // Position du joint parent
-
-                // Calculer les vecteurs
-                Vec3 vecteurRE = positionArticulationActuelle - positionArticulationParent; // de parent vers end effector
-                Vec3 vecteurRD = targetPosition - positionArticulationParent;               // de parent vers cible
-
-                // Vérifier si les vecteurs ont une longueur suffisante
-                if (vecteurRE.length() < 1e-8 || vecteurRD.length() < 1e-8)
+                while ((targetPosition - targetArticPos).length() > epsilonPrecision && targetId > 0)
                 {
-                    currentArticulation = parentArticulationIndex;
-                    continue;
+
+                    Vec3 positionR = transfoIK.articulations_transformed_position[targetId];
+
+                    Vec3 differencePosition = targetPosition - positionR; // D - Position R
+                    Vec3 relativePosition = targetArticPos - positionR;   // Position E - Position R
+                    Mat3 rotationMatrix = Mat3::getRotationMatrixAligning(relativePosition, differencePosition);
+
+                    transfoIK.bone_transformations[articulations[targetId].childBones[0]].localRotation = rotationMatrix * transfoIK.bone_transformations[articulations[targetId].childBones[0]].localRotation;
+
+                    computeGlobalTransformationParameters(transfoIK);
+
+                    if (articulations[targetId].fatherBone >= 0)
+                    {
+                        targetArticPos = transfoIK.articulations_transformed_position[targetArticulation];
+                        targetId = bones[articulations[targetId].fatherBone].joints[0];
+                    }
                 }
-
-                // Normaliser les vecteurs
-                vecteurRE.normalize();
-                vecteurRD.normalize();
-
-                // Vérifier si les vecteurs sont déjà alignés
-                float cosAngle = Vec3::dot(vecteurRE, vecteurRD);
-                cosAngle = std::max(-1.0f, std::min(1.0f, cosAngle)); // clamp pour éviter les erreurs de acos
-
-                if (cosAngle > 0.9999f) // Déjà alignés
-                {
-                    currentArticulation = parentArticulationIndex;
-                    continue;
-                }
-
-                // Utiliser la fonction fournie pour calculer la rotation
-                Mat3 rotation = Mat3::getRotationMatrixAligning(vecteurRE, vecteurRD);
-
-                // Appliquer la rotation à l'os parent
-                BoneTransformation &boneTransformationParent = transfoIK.bone_transformations[articulationActuelle.fatherBone];
-                boneTransformationParent.localRotation = rotation * boneTransformationParent.localRotation;
-
-                // Mettre à jour les positions des articulations
-                computeGlobalTransformationParameters(transfoIK);
-
-                // Passer à l'articulation parent pour continuer la chaîne
-                currentArticulation = parentArticulationIndex;
             }
         }
     }
