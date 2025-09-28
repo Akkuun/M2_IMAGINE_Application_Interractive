@@ -71,7 +71,7 @@ RectangleSelectionTool rectangleSelectionTool;
 
 #include "src/SphereSelectionTool.h"
 SphereSelectionTool sphereSelectionTool;
-float selectionRadius = 0.1f;
+float selectionRadius = 0.05f;
 
 // -------------------------------------------
 // ARAP variables
@@ -89,43 +89,40 @@ std::vector<bool> verticesAreMarkedForCurrentHandle;
 std::vector<int> verticesHandles;
 double spheresSize = 0.01;
 
+// Function declarations
+Vec3 getRightVector();
+Vec3 getUpVector();
+Vec3 getViewVector();
+
 //------------------------------------------------------------------------------------------------------//
 //---------------------------------  EXAMPLE OF USE OF A LINEAR SYSTEM  --------------------------------//
 //------------------------------------------------------------------------------------------------------//
 void testlinearSystem()
 {
-    // The system that we want to solve is:
-    // A[x0 x1 x2] = b
+    // You can get inspiration from this piece of code :
     {
         linearSystem mySystem;
         mySystem.setDimensions(3, 3);
 
-        // Matrice A
-        // equations:
-        // x0 + x1 = 1  -> ligne 0
-        // x1 + x2 = 0  -> ligne 1
-        // x0 + x2 = 0  -> ligne 2
-        mySystem.A(0, 0) = 1.0; // x0  -> équation 0 : coefficient de x0
-        mySystem.A(0, 1) = 1.0; // x1  -> équation 0 : coefficient de x1
-        // pas de x2 dans l'équation 0
-        mySystem.A(1, 1) = 1.0; // x1  -> équation 1 : coefficient de x1
-        mySystem.A(1, 2) = 1.0; // x2  -> équation 1 : coefficient de x2
-        mySystem.A(2, 0) = 1.0; // x0  -> équation 2 : coefficient de x0
-        mySystem.A(2, 2) = 1.0; // x2  -> équation 2 : coefficient de x2
-        // A = [1  1  0]
-        //     [0  1  1]
-        //     [1  0  1]
-
-        // Remplissage du vecteur b
-        mySystem.b(0) = 1.0; // x0 + x1 = 1 -> ligne 0
-        mySystem.b(1) = 0.0; // x1 + x2 = 0 -> ligne 1
-        mySystem.b(2) = 0.0; // x0 + x2 = 0 -> ligne 2
+        mySystem.A(0, 0) = 1.0;
+        mySystem.A(0, 1) = 1.0;
+        mySystem.A(0, 2) = 0.0;
+        mySystem.A(1, 0) = 0.0;
+        mySystem.A(1, 1) = 1.0;
+        mySystem.A(1, 2) = 1.0;
+        mySystem.A(2, 0) = 1.0;
+        mySystem.A(2, 1) = 0.0;
+        mySystem.A(2, 2) = 1.0;
+        // the values that are not set with mySystem.A(row,column) = value, are set to 0 by default.
+        mySystem.b(0) = 1.0;
+        mySystem.b(1) = 0.0;
+        mySystem.b(2) = 0.0;
 
         mySystem.preprocess();
         Eigen::VectorXd X;
         mySystem.solve(X);
 
-        std::cout << "Solution: x0 = " << X[0] << ", x1 = " << X[1] << ", x2 = " << X[2] << std::endl;
+        std::cout << X[0] << "  " << X[1] << "  " << X[2] << std::endl;
     }
 }
 //------------------------------------------------------------------------------------------------------//
@@ -137,6 +134,8 @@ Eigen::MatrixXd getClosestRotation(Eigen::MatrixXd const &m)
     Eigen::JacobiSVD<Eigen::MatrixXd> svdStruct = m.jacobiSvd(Eigen::ComputeFullU | Eigen::ComputeFullV);
     return svdStruct.matrixU() * svdStruct.matrixV().transpose();
 }
+
+
 
 //-----------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------//
@@ -150,25 +149,25 @@ void updateSystem()
     if (!handlesWereChanged)
         return;
 
+    // TODO:
     // set the right values for the number or rows and number of columns
     // remember: number of colums = nb of variables
     // remember: number of rows = nb of equations
 
-    // on va commencer par remplir la matrice A du système linéaire
-    unsigned int ncolumns = mesh.V.size() * 3; //  nombre de variables = 3 coordonnées par chaque sommet
+    unsigned int ncolumns = 3 * mesh.V.size();
 
-    unsigned int nrows = 0; // nombre d'équations
+    unsigned int nrows = 0;
 
     for (unsigned int v = 0; v < mesh.V.size(); ++v)
     {
         unsigned int numberOfNeighbors = edgeAndVertexWeights.get_n_adjacent_edges(v);
-        nrows += numberOfNeighbors * 3; // 3 équations par voisin
+        nrows += numberOfNeighbors * 3; // WHAT TO PUT HERE ??????? How to update the number of rows ?
     }
     for (unsigned int v = 0; v < mesh.V.size(); ++v)
     {
         if (verticesHandles[v] != -1)
         {
-            nrows += 3; // chaque sommet de contrainte contribue pour 3 équations (x,y,z)
+            nrows += 3; // WHAT TO PUT HERE ??????? How to update the number of rows ?
         }
     }
 
@@ -188,13 +187,18 @@ void updateSystem()
             unsigned int vNeighbor = it->first;
 
             // WHAT TO PUT HERE ??????? How to update the entries of A ?
-            for (int coord = 0; coord < 3; coord++)
-            {
 
-                arapLinearSystem.A(equationIndex, v * 3 + coord) = -1.0f;
-                arapLinearSystem.A(equationIndex, vNeighbor * 3 + coord) = 1.0f;
-                equationIndex++;
-            }
+            arapLinearSystem.A(equationIndex, 3 * v) = -1.0f;
+            arapLinearSystem.A(equationIndex, 3 * vNeighbor) = 1.0f;
+            equationIndex++;
+
+            arapLinearSystem.A(equationIndex, 1 + 3 * v) = -1.0f;
+            arapLinearSystem.A(equationIndex, 1 + 3 * vNeighbor) = 1.0f;
+            equationIndex++;
+
+            arapLinearSystem.A(equationIndex, 2 + 3 * v) = -1.0f;
+            arapLinearSystem.A(equationIndex, 2 + 3 * vNeighbor) = 1.0f;
+            equationIndex++;
         }
     }
     for (unsigned int v = 0; v < mesh.V.size(); ++v)
@@ -203,11 +207,10 @@ void updateSystem()
         {
 
             // WHAT TO PUT HERE ??????? How to update the entries of A ?
-            for (int coord = 0; coord < 3; coord++)
-            {
-                arapLinearSystem.A(equationIndex, v * 3 + coord) = 1.0f; // on met 1.0 pour la coordonnée du sommet v
-                equationIndex++;                                         // on passe à la ligne suivante
-            }
+            arapLinearSystem.A(equationIndex, 3 * v) = 1.0f;
+            arapLinearSystem.A(equationIndex + 1, 1 + 3 * v) = 1.0f;
+            arapLinearSystem.A(equationIndex + 2, 2 + 3 * v) = 1.0f;
+            equationIndex += 3;
         }
     }
 
@@ -223,7 +226,7 @@ void updateMeshVertexPositionsFromARAPSolver()
     unsigned int maxIterationsForArap = 5;
 
     // return; // TODO : COMMENT THIS LINE WHEN YOU CONTINUE THE EXERCISE  (setup of the vector B for the linear system A.X=B)
-    //  set the right values for the vector b in the linear system, solve the linear system and update the positions using the solution.
+    // set the right values for the vector b in the linear system, solve the linear system and update the positions using the solution.
 
     for (unsigned int arapIteration = 0; arapIteration < maxIterationsForArap; ++arapIteration)
     {
@@ -240,24 +243,27 @@ void updateMeshVertexPositionsFromARAPSolver()
                     rotatedEdge[coord] = mesh.V[vNeighbor].pInit[coord] - mesh.V[v].pInit[coord];
                 rotatedEdge = vertexRotationMatrices[v] * rotatedEdge;
 
-                for (unsigned int coord = 0; coord < 3; coord++) // pour chaque coordonnée x,y,z
-                // on remplit le bon coefficient de b via l'index d'équation courant et la coordonnée courante coord
-                {
-                    arapLinearSystem.b(equationIndex) = rotatedEdge[coord];
-                    equationIndex++;
-                }
+                // WHAT TO PUT HERE ??????? How to update the entries of b ?
+                arapLinearSystem.b(equationIndex) = rotatedEdge[0];
+                equationIndex++;
+                arapLinearSystem.b(equationIndex) = rotatedEdge[1];
+                equationIndex++;
+                arapLinearSystem.b(equationIndex) = rotatedEdge[2];
+                equationIndex++;
             }
         }
         for (unsigned int v = 0; v < mesh.V.size(); ++v)
         {
-            if (verticesHandles[v] != -1) // si le sommet est un sommet de contrainte
+            if (verticesHandles[v] != -1)
             {
 
-                for (unsigned int coord = 0; coord < 3; coord++) // pour chaque coordonnée x,y,z
-                {
-                    arapLinearSystem.b(equationIndex) = mesh.V[v].p[coord]; // on met alors la bonne valeur de contrainte
-                    equationIndex++;
-                }
+                // WHAT TO PUT HERE ??????? How to update the entries of b ?
+                arapLinearSystem.b(equationIndex) = mesh.V[v].p[0];
+                equationIndex++;
+                arapLinearSystem.b(equationIndex) = mesh.V[v].p[1];
+                equationIndex++;
+                arapLinearSystem.b(equationIndex) = mesh.V[v].p[2];
+                equationIndex++;
             }
         }
 
@@ -291,9 +297,11 @@ void updateMeshVertexPositionsFromARAPSolver()
                     rotatedEdge[coord] = mesh.V[vNeighbor].p[coord] - mesh.V[v].p[coord];
                 }
 
-                // WHAT TO PUT HERE ??????? How to update the entries of the tensor matrix ?
+                // WHAT TO PUT HERE ??????? How to update the entries of the tensor   ?
+                // 1 build
                 tensorMatrix += it->second * (rotatedEdge * initialEdge.transpose());
             }
+            // 2 SVD 3 solution
             vertexRotationMatrices[v] = getClosestRotation(tensorMatrix);
         }
     }
@@ -357,53 +365,62 @@ void rotateActiveHandle(Vec3 const &rotationAxis, double angle)
 void get3DPosFromMouseInput(int x, int y, float &posX, float &posY, float &posZ)
 {
     // Convert mouse coordinates to normalized device coordinates
-    float viewport[4];
-    glGetFloatv(GL_VIEWPORT, viewport);
+    float mouseX = (2.0f * x) / SCREENWIDTH - 1.0f;
+    float mouseY = 1.0f - (2.0f * y) / SCREENHEIGHT;
 
-    // Normalize mouse coordinates to [-1, 1]
-    float normalizedX = (2.0f * x) / viewport[2] - 1.0f;
-    float normalizedY = 1.0f - (2.0f * y) / viewport[3];
+    // Get camera position and vectors
+    Vec3 cameraPos;
+    camera.getPos(cameraPos);
 
-    // Calculate mesh center as reference point
-    Vec3 meshCenter(0.0f, 0.0f, 0.0f);
-    if (mesh.V.size() > 0)
-    {
-        for (unsigned int v = 0; v < mesh.V.size(); ++v)
-        {
-            meshCenter += mesh.V[v].p;
-        }
-        meshCenter = (1.0f / mesh.V.size()) * meshCenter;
-    }
+    // Cast a ray from camera through mouse position
+    float depth = 2.0f; // Distance from camera
 
-    // Use the mouse position and the depth of the mesh center
-    // Scale the mouse coordinates and add to mesh center
-    posX = normalizedX * 0.5f + meshCenter[0];
-    posY = normalizedY * 0.5f + meshCenter[1];
-    posZ = meshCenter[2];
+    // Get the camera vectors (these functions exist in gmini.cpp)
+    Vec3 viewDir = getViewVector();
+    Vec3 rightVec = getRightVector();
+    Vec3 upVec = getUpVector();
+
+    // Calculate 3D position along the viewing ray
+    posX = cameraPos[0] + viewDir[0] * depth;
+    posY = cameraPos[1] + viewDir[1] * depth;
+    posZ = cameraPos[2] + viewDir[2] * depth;
+
+    // Adjust based on mouse offset from center
+    posX += rightVec[0] * mouseX * 0.5f + upVec[0] * mouseY * 0.5f;
+    posY += rightVec[1] * mouseX * 0.5f + upVec[1] * mouseY * 0.5f;
+    posZ += rightVec[2] * mouseX * 0.5f + upVec[2] * mouseY * 0.5f;
 }
 
 void setTagForVerticesInSphere(bool tagToSet)
 {
     // check if vertices are inside the sphere
-    for (unsigned int v = 0; v < mesh.V.size(); ++v)
+    for (unsigned int i = 0; i < mesh.V.size(); i++)
     {
-        Vec3 const &p = mesh.V[v].p;
-
-        // Check if vertex p is inside the sphere using the contains method
-        if (sphereSelectionTool.contains(p))
+        if (sphereSelectionTool.contains(mesh.V[i]))
         {
-            verticesAreMarkedForCurrentHandle[v] = tagToSet;
+            verticesAreMarkedForCurrentHandle[i] = tagToSet;
         }
     }
 }
 
 void updateSphereRadiusWithScroll(int button)
 {
-    if (button == 3) // scroll up
+    if (selectionToolState == SelectionTool_Sphere && sphereSelectionTool.isActive)
     {
-    }
-    else if (button == 4) // scroll down
-    {
+        if (button == 3) // scroll up - increase radius
+        {
+            selectionRadius += 0.02f;
+            if (selectionRadius > 0.5f)
+                selectionRadius = 0.5f; // limit max size
+            sphereSelectionTool.updateSphere(selectionRadius);
+        }
+        else if (button == 4) // scroll down - decrease radius
+        {
+            selectionRadius -= 0.02f;
+            if (selectionRadius < 0.05f)
+                selectionRadius = 0.05f; // limit min size
+            sphereSelectionTool.updateSphere(selectionRadius);
+        }
     }
 }
 
@@ -758,16 +775,8 @@ void draw()
     glColor3f(0.4, 0.4, 0.8);
     mesh.draw();
     drawHandles();
-
-    // Draw the appropriate selection tool based on current state
-    if (selectionToolState == SelectionTool_Rectangle)
-    {
-        rectangleSelectionTool.draw();
-    }
-    else if (selectionToolState == SelectionTool_Sphere)
-    {
-        sphereSelectionTool.draw();
-    }
+    rectangleSelectionTool.draw();
+    sphereSelectionTool.draw();
 }
 
 void display()
@@ -918,6 +927,9 @@ void key(unsigned char keyPressed, int x, int y)
         {
             viewerState = ViewerState_NORMAL;
             finalizeEditingOfCurrentHandle();
+            // Désactiver la sphère de sélection
+            sphereSelectionTool.isActive = false;
+            rectangleSelectionTool.isActive = false;
         }
         break;
 
@@ -977,16 +989,25 @@ void key(unsigned char keyPressed, int x, int y)
 
 void mouse(int button, int state, int x, int y)
 {
-    if (glutGetModifiers() & GLUT_ACTIVE_CTRL || rectangleSelectionTool.isActive)
+    if (glutGetModifiers() & GLUT_ACTIVE_CTRL || rectangleSelectionTool.isActive || sphereSelectionTool.isActive)
     { // we can activate the selection only with ctrl pressed
         if (viewerState == ViewerState_EDITINGHANDLE)
         {
             if (state == GLUT_UP)
             {
-                // then the mouse is released, confirm selection editing
-                rectangleSelectionTool.isActive = false;
-                sphereSelectionTool.isActive = false;
-                addVerticesToCurrentHandle();
+                // then the mouse is released
+                if (selectionToolState == SelectionTool_Rectangle)
+                {
+                    // Rectangle: confirm editing and deactivate
+                    rectangleSelectionTool.isActive = false;
+                    addVerticesToCurrentHandle();
+                }
+                else if (selectionToolState == SelectionTool_Sphere)
+                {
+                    // Sphere: add vertices but keep sphere active until Enter is pressed
+                    addVerticesToCurrentHandle();
+                    // La sphère reste active jusqu'à ce qu'on appuie sur Entrée
+                }
             }
             else
             {
@@ -1079,11 +1100,11 @@ void motion(int x, int y)
     }
     else if (viewerState == ViewerState_EDITINGHANDLE && sphereSelectionTool.isActive)
     {
-        // Update sphere position to follow mouse
+        // Update sphere position based on mouse movement
         float posX, posY, posZ;
         get3DPosFromMouseInput(x, y, posX, posY, posZ);
-        Vec3 pos(posX, posY, posZ);
-        sphereSelectionTool.updateSphere(pos);
+        Vec3 newPos(posX, posY, posZ);
+        sphereSelectionTool.updateSphere(newPos);
     }
     else
     {
