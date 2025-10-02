@@ -49,6 +49,7 @@ static bool mouseZoomPressed = false;
 static int lastX = 0, lastY = 0, lastZoom = 0;
 static unsigned int FPS = 0;
 static bool fullScreen = false;
+static int clickedVertexIndex = -1;
 
 enum ViewerState
 {
@@ -72,6 +73,13 @@ RectangleSelectionTool rectangleSelectionTool;
 #include "src/SphereSelectionTool.h"
 SphereSelectionTool sphereSelectionTool;
 float selectionRadius = 0.05f;
+float geodesicSelectionRadius = 0.1f;                    // Rayon de sélection géodésique (peut être différent du rayon visuel)
+bool showGeodesicDistances = true;                       // Variable pour afficher les distances géodésiques
+std::unordered_map<int, float> currentGeodesicDistances; // Stocker les distances pour la visualisation
+float maxGeodesicDistance = 0.0f;                        // Distance géodésique maximale pour la normalisation
+Vec3 clickedVertexNormal;                                // Normale N du vertex V le plus proche du point cliqué P
+bool useNormalBasedSelection = true;                     // Utiliser la sélection basée sur la variation de normale
+float normalThreshold = 0.3f;                            // Seuil de différence de normale (0 = identique, 1 = perpendiculaire)
 
 // -------------------------------------------
 // ARAP variables
@@ -134,8 +142,6 @@ Eigen::MatrixXd getClosestRotation(Eigen::MatrixXd const &m)
     Eigen::JacobiSVD<Eigen::MatrixXd> svdStruct = m.jacobiSvd(Eigen::ComputeFullU | Eigen::ComputeFullV);
     return svdStruct.matrixU() * svdStruct.matrixV().transpose();
 }
-
-
 
 //-----------------------------------------------------------------------------------//
 //-----------------------------------------------------------------------------------//
@@ -396,13 +402,104 @@ void setTagForVerticesInSphere(bool tagToSet)
     // check if vertices are inside the sphere
     for (unsigned int i = 0; i < mesh.V.size(); i++)
     {
-        if (sphereSelectionTool.contains(mesh.V[i]))
+        if (sphereSelectionTool.contains(mesh.V[i].p))
         {
             verticesAreMarkedForCurrentHandle[i] = tagToSet;
         }
     }
 }
 
+void computeAllGeodesicDistances()
+{
+    if (clickedVertexIndex == -1)
+        return;
+
+    // Stocker la normale N du vertex V le plus proche
+    clickedVertexNormal = mesh.V[clickedVertexIndex].n;
+    std::cout << "Vertex V sélectionné: " << clickedVertexIndex << ", Normale N: ("
+              << clickedVertexNormal[0] << ", " << clickedVertexNormal[1] << ", " << clickedVertexNormal[2] << ")" << std::endl;
+
+    // Calculer les distances géodésiques depuis le point cliqué sur TOUT le mesh
+    if (useNormalBasedSelection)
+    {
+        // Utiliser l'heuristique basée sur la normale N
+        currentGeodesicDistances = sphereSelectionTool.computeGeodesicDistances(
+            mesh, clickedVertexIndex, -1.0f, clickedVertexNormal, true);
+        std::cout << "Utilisation de l'heuristique basée sur la normale N" << std::endl;
+    }
+    else
+    {
+        // Utiliser l'heuristique euclidienne classique
+        currentGeodesicDistances = sphereSelectionTool.computeGeodesicDistances(
+            mesh, clickedVertexIndex, -1.0f);
+        std::cout << "Utilisation de l'heuristique euclidienne classique" << std::endl;
+    }
+
+    // Calculer la distance maximale pour la normalisation des couleurs
+    maxGeodesicDistance = 0.0f;
+    for (const auto &pair : currentGeodesicDistances)
+    {
+        if (pair.second > maxGeodesicDistance)
+            maxGeodesicDistance = pair.second;
+    }
+
+    // Debug: afficher le nombre de distances calculées
+    std::cout << "Distances calculées: " << currentGeodesicDistances.size() << " vertices, max distance: " << maxGeodesicDistance << std::endl;
+}
+
+void setTagForVerticesInSphereGeodesic(bool tagToSet)
+{
+    if (clickedVertexIndex == -1)
+        return;
+
+    // Calculer toutes les distances géodésiques pour la visualisation
+    computeAllGeodesicDistances();
+
+    // Marquer seulement les vertices dans le rayon géodésique de la sphère
+    int selectedCount = 0;
+    int euclideanCount = 0; // Pour comparaison
+
+    for (const auto &pair : currentGeodesicDistances)
+    {
+        int vertexIndex = pair.first;
+        float geodesicDistance = pair.second;
+
+        // Sélection basée sur la DISTANCE GÉODÉSIQUE
+        if (geodesicDistance <= geodesicSelectionRadius)
+        {
+            bool shouldSelect = true;
+
+            // Filtrage supplémentaire par variation de normale
+            if (useNormalBasedSelection && clickedVertexNormal.length() > 0.1f)
+            {
+                Vec3 vertexNormal = mesh.V[vertexIndex].n;
+                float dotProduct = clickedVertexNormal[0] * vertexNormal[0] +
+                                   clickedVertexNormal[1] * vertexNormal[1] +
+                                   clickedVertexNormal[2] * vertexNormal[2];
+                float normalDifference = 1.0f - dotProduct;
+
+                // Seulement sélectionner si la différence de normale est faible
+                shouldSelect = (normalDifference <= normalThreshold);
+            }
+
+            if (shouldSelect)
+            {
+                verticesAreMarkedForCurrentHandle[vertexIndex] = tagToSet;
+                selectedCount++;
+            }
+        }
+
+        // Pour comparaison : compter combien auraient été sélectionnés avec la distance euclidienne
+        Vec3 vertexPos = mesh.V[vertexIndex].p;
+        if (sphereSelectionTool.contains(vertexPos))
+        {
+            euclideanCount++;
+        }
+    }
+
+    std::cout << "Sélection géodésique: " << selectedCount << " vertices" << std::endl;
+    std::cout << "Sélection euclidienne (pour comparaison): " << euclideanCount << " vertices" << std::endl;
+}
 
 //---------------------------------   YOU DO NOT NEED TO CHANGE THE FOLLOWING CODE  --------------------------------//
 void glVertex(Vec3 const &p)
@@ -488,7 +585,7 @@ void addVerticesToCurrentHandle()
     if (selectionToolState == SelectionTool_Rectangle)
         setTagForVerticesInRectangle(rectangleSelectionTool.isAdding);
     else if (selectionToolState == SelectionTool_Sphere)
-        setTagForVerticesInSphere(sphereSelectionTool.isAdding);
+        setTagForVerticesInSphereGeodesic(sphereSelectionTool.isAdding);
 }
 
 void finalizeEditingOfCurrentHandle()
@@ -746,6 +843,79 @@ void drawHandles()
     }
 }
 
+void drawGeodesicDistances()
+{
+    if (clickedVertexIndex == -1 || !showGeodesicDistances || currentGeodesicDistances.empty())
+        return;
+
+    glDisable(GL_LIGHTING);
+    glPointSize(5.0f);
+    glBegin(GL_POINTS);
+
+    for (const auto &pair : currentGeodesicDistances)
+    {
+        int vertexIndex = pair.first;
+        float distance = pair.second;
+
+        // Couleur basée sur la distance (vert = proche, rouge = loin)
+        float ratio = distance / sphereSelectionTool.radius;
+        glColor3f(ratio, 1.0f - ratio, 0.0f);
+
+        Vec3 pos = mesh.V[vertexIndex].p;
+        glVertex3f(pos[0], pos[1], pos[2]);
+    }
+
+    glEnd();
+    glEnable(GL_LIGHTING);
+}
+
+void drawMeshWithGeodesicColors()
+{
+    if (clickedVertexIndex == -1 || !showGeodesicDistances || currentGeodesicDistances.empty())
+    {
+        // Si pas de distances géodésiques, dessiner normalement
+        mesh.draw();
+        return;
+    }
+
+    // Dessiner le mesh avec les couleurs géodésiques
+    glEnable(GL_LIGHTING);
+    glBegin(GL_TRIANGLES);
+
+    for (const auto &triangle : mesh.T)
+    {
+        for (int i = 0; i < 3; i++)
+        {
+            int vertexIndex = triangle.v[i];
+            Vec3 pos = mesh.V[vertexIndex].p;
+            Vec3 normal = mesh.V[vertexIndex].n;
+
+            // Calculer la couleur basée sur la distance géodésique
+            float distance = 0.0f;
+            if (currentGeodesicDistances.find(vertexIndex) != currentGeodesicDistances.end())
+            {
+                distance = currentGeodesicDistances[vertexIndex];
+            }
+            else
+            {
+                distance = maxGeodesicDistance; // Si pas de distance, utiliser la max
+            }
+
+            // Normaliser la distance et calculer la couleur
+            float normalizedDistance = (maxGeodesicDistance > 0) ? (distance / maxGeodesicDistance) : 0.0f;
+
+            float r, g, b;
+            calc_RGB(normalizedDistance, 0.0f, 1.0f, r, g, b);
+
+            glColor3f(r, g, b);
+            glNormal3f(normal[0], normal[1], normal[2]);
+            glVertex3f(pos[0], pos[1], pos[2]);
+        }
+    }
+
+    glEnd();
+}
+
 void draw()
 {
     glEnable(GL_DEPTH);
@@ -753,10 +923,11 @@ void draw()
     glEnable(GL_LIGHTING);
     glDisable(GL_BLEND);
     glColor3f(0.4, 0.4, 0.8);
-    mesh.draw();
+    drawMeshWithGeodesicColors();
     drawHandles();
     rectangleSelectionTool.draw();
     sphereSelectionTool.draw();
+    // drawGeodesicDistances(); // Remplacé par drawMeshWithGeodesicColors()
 }
 
 void display()
@@ -960,13 +1131,102 @@ void key(unsigned char keyPressed, int x, int y)
         }
         break;
 
+    case 'd':
+        // Basculer l'affichage des distances géodésiques
+        showGeodesicDistances = !showGeodesicDistances;
+        break;
+
+    case 'h':
+        // Basculer entre sélection normale et sélection basée sur la variation de normale
+        useNormalBasedSelection = !useNormalBasedSelection;
+        std::cout << "Sélection basée sur la normale: " << (useNormalBasedSelection ? "ACTIVÉE" : "DÉSACTIVÉE") << std::endl;
+        // Recalculer si une sphère est active
+        if (sphereSelectionTool.isActive && clickedVertexIndex != -1)
+        {
+            computeAllGeodesicDistances();
+            for (unsigned int v = 0; v < mesh.V.size(); ++v)
+            {
+                verticesAreMarkedForCurrentHandle[v] = false;
+            }
+            setTagForVerticesInSphereGeodesic(sphereSelectionTool.isAdding);
+        }
+        break;
+
+    case '+':
+    case '=':
+        // Augmenter le rayon de sélection géodésique
+        geodesicSelectionRadius += 0.02f;
+        if (geodesicSelectionRadius > 1.0f)
+            // geodesicSelectionRadius = 1.0f;
+            std::cout << "Rayon géodésique: " << geodesicSelectionRadius << std::endl;
+        // Recalculer la sélection si une sphère est active
+        if (sphereSelectionTool.isActive && clickedVertexIndex != -1)
+        {
+            for (unsigned int v = 0; v < mesh.V.size(); ++v)
+            {
+                verticesAreMarkedForCurrentHandle[v] = false;
+            }
+            setTagForVerticesInSphereGeodesic(sphereSelectionTool.isAdding);
+        }
+        break;
+
+    case '-':
+        // Diminuer le rayon de sélection géodésique
+        geodesicSelectionRadius -= 0.02f;
+        if (geodesicSelectionRadius < 0.01f)
+            geodesicSelectionRadius = 0.01f;
+        std::cout << "Rayon géodésique: " << geodesicSelectionRadius << std::endl;
+        // Recalculer la sélection si une sphère est active
+        if (sphereSelectionTool.isActive && clickedVertexIndex != -1)
+        {
+            for (unsigned int v = 0; v < mesh.V.size(); ++v)
+            {
+                verticesAreMarkedForCurrentHandle[v] = false;
+            }
+            setTagForVerticesInSphereGeodesic(sphereSelectionTool.isAdding);
+        }
+        break;
+
+    case 'k':
+        // Augmenter le seuil de différence de normale (moins strict)
+        normalThreshold += 0.05f;
+        if (normalThreshold > 1.0f)
+            normalThreshold = 1.0f;
+        std::cout << "Seuil de normale: " << normalThreshold << " (0=strict, 1=permissif)" << std::endl;
+        // Recalculer si une sphère est active
+        if (sphereSelectionTool.isActive && clickedVertexIndex != -1 && useNormalBasedSelection)
+        {
+            for (unsigned int v = 0; v < mesh.V.size(); ++v)
+            {
+                verticesAreMarkedForCurrentHandle[v] = false;
+            }
+            setTagForVerticesInSphereGeodesic(sphereSelectionTool.isAdding);
+        }
+        break;
+
+    case 'j':
+        // Diminuer le seuil de différence de normale (plus strict)
+        normalThreshold -= 0.05f;
+        if (normalThreshold < 0.0f)
+            normalThreshold = 0.0f;
+        std::cout << "Seuil de normale: " << normalThreshold << " (0=strict, 1=permissif)" << std::endl;
+        // Recalculer si une sphère est active
+        if (sphereSelectionTool.isActive && clickedVertexIndex != -1 && useNormalBasedSelection)
+        {
+            for (unsigned int v = 0; v < mesh.V.size(); ++v)
+            {
+                verticesAreMarkedForCurrentHandle[v] = false;
+            }
+            setTagForVerticesInSphereGeodesic(sphereSelectionTool.isAdding);
+        }
+        break;
+
     default:
         printUsage();
         break;
     }
     idle();
 }
-
 
 void updateSphereRadiusWithScroll(int button)
 {
@@ -988,7 +1248,7 @@ void updateSphereRadiusWithScroll(int button)
                     verticesAreMarkedForCurrentHandle[v] = false;
                 }
                 // Reselect with new radius
-                setTagForVerticesInSphere(sphereSelectionTool.isAdding);
+                setTagForVerticesInSphereGeodesic(sphereSelectionTool.isAdding);
             }
         }
         else if (button == 4) // scroll down - decrease radius
@@ -1007,7 +1267,7 @@ void updateSphereRadiusWithScroll(int button)
                     verticesAreMarkedForCurrentHandle[v] = false;
                 }
                 // Reselect with new radius
-                setTagForVerticesInSphere(sphereSelectionTool.isAdding);
+                setTagForVerticesInSphereGeodesic(sphereSelectionTool.isAdding);
             }
         }
     }
@@ -1031,8 +1291,16 @@ void mouse(int button, int state, int x, int y)
                 else if (selectionToolState == SelectionTool_Sphere)
                 {
                     // Sphere: add vertices but keep sphere active until Enter is pressed
-                    addVerticesToCurrentHandle();
+                    // addVerticesToCurrentHandle();
                     // La sphère reste active jusqu'à ce qu'on appuie sur Entrée
+                    Vec3 pos = sphereSelectionTool.screenTo3D(x, y);
+                    // Trouver V le sommet le plus proche de P et N sa normale associée
+                    auto vertexAndNormal = sphereSelectionTool.findClosestVertexWithNormal(mesh, pos);
+                    clickedVertexIndex = vertexAndNormal.first;
+                    clickedVertexNormal = vertexAndNormal.second;
+
+                    // Effectuer la sélection géodésique
+                    setTagForVerticesInSphereGeodesic(sphereSelectionTool.isAdding);
                 }
             }
             else
@@ -1052,6 +1320,14 @@ void mouse(int button, int state, int x, int y)
                         sphereSelectionTool.initSphere(pos, selectionRadius);
                         sphereSelectionTool.isAdding = true;
                         sphereSelectionTool.isActive = true;
+
+                        // Capturer V le vertex le plus proche du clic et N sa normale pour la sélection géodésique
+                        auto vertexAndNormal = sphereSelectionTool.findClosestVertexWithNormal(mesh, pos);
+                        clickedVertexIndex = vertexAndNormal.first;
+                        clickedVertexNormal = vertexAndNormal.second;
+
+                        // Effectuer la sélection géodésique
+                        setTagForVerticesInSphereGeodesic(sphereSelectionTool.isAdding);
                     }
                 }
                 else if (button == GLUT_RIGHT_BUTTON)
@@ -1069,6 +1345,14 @@ void mouse(int button, int state, int x, int y)
                         sphereSelectionTool.initSphere(pos, selectionRadius);
                         sphereSelectionTool.isAdding = false;
                         sphereSelectionTool.isActive = true;
+
+                        // Capturer V le vertex le plus proche du clic et N sa normale pour la sélection géodésique
+                        auto vertexAndNormal = sphereSelectionTool.findClosestVertexWithNormal(mesh, pos);
+                        clickedVertexIndex = vertexAndNormal.first;
+                        clickedVertexNormal = vertexAndNormal.second;
+
+                        // Effectuer la sélection géodésique
+                        setTagForVerticesInSphereGeodesic(sphereSelectionTool.isAdding);
                     }
                 }
                 // Gestion de la molette de la souris pour le rayon
@@ -1132,12 +1416,17 @@ void motion(int x, int y)
         Vec3 newPos = sphereSelectionTool.screenTo3D(x, y);
         sphereSelectionTool.updateSphere(newPos);
 
+        // Update clicked vertex V index et sa normale N pour le nouveau point
+        auto vertexAndNormal = sphereSelectionTool.findClosestVertexWithNormal(mesh, newPos);
+        clickedVertexIndex = vertexAndNormal.first;
+        clickedVertexNormal = vertexAndNormal.second;
+
         // Update selection in real-time
         for (unsigned int v = 0; v < mesh.V.size(); ++v)
         {
             verticesAreMarkedForCurrentHandle[v] = false;
         }
-        setTagForVerticesInSphere(sphereSelectionTool.isAdding);
+        setTagForVerticesInSphereGeodesic(sphereSelectionTool.isAdding);
     }
     else
     {
@@ -1159,7 +1448,6 @@ void motion(int x, int y)
         }
     }
 }
-
 
 void reshape(int w, int h)
 {
@@ -1188,7 +1476,7 @@ int main(int argc, char **argv)
     glutSpecialFunc(SpecialInput);
     key('?', 0, 0);
 
-    mesh.loadOFF(argc == 2 ? argv[1] : "models/arma.off");
+    mesh.loadOFF(argc == 2 ? argv[1] : "models/couplingdown.off");
     verticesAreMarkedForCurrentHandle.resize(mesh.V.size(), false);
     verticesHandles.resize(mesh.V.size(), -1);
     edgeAndVertexWeights.buildCotangentWeightsOfTriangleMesh(mesh);
