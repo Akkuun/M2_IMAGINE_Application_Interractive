@@ -292,6 +292,11 @@ void Texture::draw(const qglviewer::Camera *camera)
     glFunctions->glUniform1f(glFunctions->glGetUniformLocation(programID, "xMax"), xMax);
     glFunctions->glUniform1f(glFunctions->glGetUniformLocation(programID, "yMax"), yMax);
     glFunctions->glUniform1f(glFunctions->glGetUniformLocation(programID, "zMax"), zMax);
+
+    // envoyer les Uniforms xMin, yMin, zMin pour la normalisation du maillage
+    glFunctions->glUniform1f(glFunctions->glGetUniformLocation(programID, "xMin"), (float)Vmin[0]);
+    glFunctions->glUniform1f(glFunctions->glGetUniformLocation(programID, "yMin"), (float)Vmin[1]);
+    glFunctions->glUniform1f(glFunctions->glGetUniformLocation(programID, "zMin"), (float)Vmin[2]);
     // Activer et binder la texture 3D
     glEnable(GL_TEXTURE_3D);
     glActiveTexture(GL_TEXTURE0);

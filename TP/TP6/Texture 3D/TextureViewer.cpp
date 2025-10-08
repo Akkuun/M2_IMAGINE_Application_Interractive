@@ -53,13 +53,40 @@ void TextureViewer::drawClippingPlane()
 
 void TextureViewer::drawMesh()
 {
+    if (vertices.empty() || triangles.empty())
+    {
+        return;
+    }
+
+    // Si on a une texture 3D chargée, elle sera appliquée automatiquement par le shader
+    // Sinon, on met une couleur par défaut
+    if (!imageLoaded)
+    {
+        glColor3f(0.8f, 0.3f, 0.3f); // Rouge pour voir le maillage sans texture
+    }
+
     glBegin(GL_TRIANGLES);
     for (const auto &triangle : triangles)
     {
-        for (size_t i = 0; i < 3; ++i)
+        // Calculer la normale pour l'éclairage
+        if (triangle[0] < vertices.size() && triangle[1] < vertices.size() && triangle[2] < vertices.size())
         {
-            const qglviewer::Vec &vertex = vertices[triangle[i]];
-            glVertex3f(vertex.x, vertex.y, vertex.z);
+            const qglviewer::Vec &v0 = vertices[triangle[0]];
+            const qglviewer::Vec &v1 = vertices[triangle[1]];
+            const qglviewer::Vec &v2 = vertices[triangle[2]];
+
+            // Calcul de la normale
+            qglviewer::Vec edge1 = v1 - v0;
+            qglviewer::Vec edge2 = v2 - v0;
+            qglviewer::Vec normal = edge1 ^ edge2;
+            normal.normalize();
+
+            glNormal3f(normal.x, normal.y, normal.z);
+
+            // Les trois vertices du triangle
+            glVertex3f(v0.x, v0.y, v0.z);
+            glVertex3f(v1.x, v1.y, v1.z);
+            glVertex3f(v2.x, v2.y, v2.z);
         }
     }
     glEnd();
@@ -215,6 +242,120 @@ void TextureViewer::openOffMesh(const QString &fileName)
             exit(1);
         }
     }
+    // Calculer la boîte englobante du maillage original
+    if (!vertices.empty())
+    {
+        Vec meshMin = vertices[0];
+        Vec meshMax = vertices[0];
+
+        for (const auto &vertex : vertices)
+        {
+            meshMin.x = std::min(meshMin.x, vertex.x);
+            meshMin.y = std::min(meshMin.y, vertex.y);
+            meshMin.z = std::min(meshMin.z, vertex.z);
+            meshMax.x = std::max(meshMax.x, vertex.x);
+            meshMax.y = std::max(meshMax.y, vertex.y);
+            meshMax.z = std::max(meshMax.z, vertex.z);
+        }
+
+        std::cout << "Original mesh bounds: min(" << meshMin.x << ", " << meshMin.y << ", " << meshMin.z << ")" << std::endl;
+        std::cout << "                      max(" << meshMax.x << ", " << meshMax.y << ", " << meshMax.z << ")" << std::endl;
+
+        // Redimensionner le maillage pour qu'il occupe l'espace de l'image 3D
+        if (imageLoaded)
+        {
+            // Dimensions de l'image 3D (espace cible)
+            float textureXMax = texture->getXMax();
+            float textureYMax = texture->getYMax();
+            float textureZMax = texture->getZMax();
+
+            // Dimensions actuelles du maillage
+            Vec meshSize = meshMax - meshMin;
+
+            std::cout << "Texture dimensions: (" << textureXMax << ", " << textureYMax << ", " << textureZMax << ")" << std::endl;
+            std::cout << "Mesh size: (" << meshSize.x << ", " << meshSize.y << ", " << meshSize.z << ")" << std::endl;
+
+            // Redimensionner tous les vertices pour qu'ils occupent l'espace [0, textureMax]
+
+            // Calculer le centre du maillage
+            Vec meshCenter = (meshMin + meshMax) * 0.5f;
+
+            // Calculer le centre de l'espace texture
+            Vec textureCenter(textureXMax * 0.5f, textureYMax * 0.5f, textureZMax * 0.5f);
+
+            // Calculer le facteur d'échelle uniforme pour éviter la déformation
+            float scaleX = textureXMax / meshSize.x;
+            float scaleY = textureYMax / meshSize.y;
+            float scaleZ = textureZMax / meshSize.z;
+            float scale = std::min(scaleX, std::min(scaleY, scaleZ)) * 0.8f; // 0.8 pour laisser une marge
+
+            std::cout << "Scale factors: X=" << scaleX << ", Y=" << scaleY << ", Z=" << scaleZ << std::endl;
+            std::cout << "Uniform scale: " << scale << std::endl;
+
+            for (auto &vertex : vertices)
+            {
+                // Centrer le maillage à l'origine
+                vertex.x -= meshCenter.x;
+                vertex.y -= meshCenter.y;
+                vertex.z -= meshCenter.z;
+
+                // Appliquer l'échelle uniforme
+                vertex.x *= scale;
+                vertex.y *= scale;
+                vertex.z *= scale;
+
+                // Recentrer dans l'espace de la texture
+                vertex.x += textureCenter.x;
+                vertex.y += textureCenter.y;
+                vertex.z += textureCenter.z;
+            }
+
+            // Recalculer la nouvelle boîte englobante après redimensionnement
+            Vec newMeshMin = vertices[0];
+            Vec newMeshMax = vertices[0];
+
+            for (const auto &vertex : vertices)
+            {
+                newMeshMin.x = std::min(newMeshMin.x, vertex.x);
+                newMeshMin.y = std::min(newMeshMin.y, vertex.y);
+                newMeshMin.z = std::min(newMeshMin.z, vertex.z);
+                newMeshMax.x = std::max(newMeshMax.x, vertex.x);
+                newMeshMax.y = std::max(newMeshMax.y, vertex.y);
+                newMeshMax.z = std::max(newMeshMax.z, vertex.z);
+            }
+
+            std::cout << "Rescaled mesh bounds: min(" << newMeshMin.x << ", " << newMeshMin.y << ", " << newMeshMin.z << ")" << std::endl;
+            std::cout << "                      max(" << newMeshMax.x << ", " << newMeshMax.y << ", " << newMeshMax.z << ")" << std::endl;
+
+            // Mettre à jour Vmin et Vmax dans la classe Texture pour la normalisation
+            // Utiliser les coordonnées de l'espace texture pour la normalisation
+            texture->Vmin = Vec3Di(0, 0, 0);                                              // Minimum de l'espace texture
+            texture->Vmax = Vec3Di(int(textureXMax), int(textureYMax), int(textureZMax)); // Maximum de l'espace texture
+
+            std::cout << "Updated texture space: Vmin(0,0,0) -> Vmax(" << int(textureXMax) << "," << int(textureYMax) << "," << int(textureZMax) << ")" << std::endl;
+
+            // Ajuster la caméra pour voir le maillage redimensionné
+            Vec finalCenter = (newMeshMin + newMeshMax) * 0.5f;
+            float finalRadius = (newMeshMax - newMeshMin).norm() * 0.6f;
+            updateCamera(finalCenter, finalRadius);
+
+            std::cout << "Mesh successfully rescaled and centered in texture space!" << std::endl;
+        }
+        else
+        {
+            // Si pas d'image 3D chargée, juste ajuster la caméra au maillage
+            Vec center = (meshMin + meshMax) * 0.5;
+            float radius = (meshMax - meshMin).norm() * 0.5;
+            updateCamera(center, radius);
+
+            std::cout << "No 3D image loaded, mesh displayed at original size" << std::endl;
+        }
+
+        std::cout << "Mesh loaded: " << vertices.size() << " vertices, " << triangles.size() << " triangles" << std::endl;
+    }
+
+    myfile.close();
+    update();
 }
 
 std::istream &operator>>(std::istream &stream, qglviewer::Vec &v)
