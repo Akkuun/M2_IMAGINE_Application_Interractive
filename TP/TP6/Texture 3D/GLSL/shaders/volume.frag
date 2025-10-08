@@ -34,7 +34,24 @@ bool ComputeVisibility(vec3 point){
 	vec3 yCut = vec3(0., yCutPosition,0.);
 	vec3 zCut = vec3(0., 0.,zCutPosition);
 
-	//TODO compute visibility
+	//TODO compute visibility DONE
+	// Vérifier la visibilité pour chaque plan de coupe
+	// Le produit scalaire détermine de quel côté du plan se trouve le point
+	
+	// Plan de coupe X
+	if(dot(point - xCut, x) < 0.0) {
+		return false;
+	}
+	
+	// Plan de coupe Y
+	if(dot(point - yCut, y) < 0.0) {
+		return false;
+	}
+	
+	// Plan de coupe Z
+	if(dot(point - zCut, z) < 0.0) {
+		return false;
+	}
 
 	return true;
 }
@@ -59,8 +76,5 @@ void main() {
 	}
 
 	//TODO fetch color in texture
-
-
-
-	gl_FragColor = vec4(0,0,0,1);
+	gl_FragColor = texture3D(mask, textCoord);
 }

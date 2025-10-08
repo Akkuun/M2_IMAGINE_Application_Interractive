@@ -33,6 +33,7 @@ void main()
 	gl_Position = proj_matrix * mv_matrix * gl_Vertex;
 	position = gl_Vertex.xyz;
 
-	//Todo : compute textCoord
+	//Todo : compute textCoord DONE
+	textCoord = vec3(position.x / xMax, position.y / yMax, position.z / zMax);
 
 }

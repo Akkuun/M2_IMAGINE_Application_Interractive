@@ -21,12 +21,16 @@ Window::Window()
 
     QAction *actionLoad3Dimage = new QAction("Load 3D image", this);
     QAction *recompileShaders = new QAction("Recompile shaders", this);
+    QAction *loadOFFFile = new QAction("Load OFF File", this);
 
     QMenu *menuFile = new QMenu("File", this);
 
     menuFile->addAction(actionLoad3Dimage);
+    menuFile->addAction(loadOFFFile);
 
     connect(actionLoad3Dimage, SIGNAL(triggered()), this, SLOT(open3DImage()));
+
+    connect(loadOFFFile, SIGNAL(triggered()), this, SLOT(openOFFFile()));
 
     connect(recompileShaders, &QAction::triggered, viewer, &TextureViewer::recompileShaders);
 
@@ -68,6 +72,31 @@ Window::Window()
     this->setStatusBar(statusbar);
 
     this->setWindowTitle("Texture Viewer");
+}
+
+void Window::openOFFFile()
+{
+    QString selectedFilter, openFileNameLabel;
+    QString fileFilter = "OFF (*.off)";
+
+    QString fileName = QFileDialog::getOpenFileName(this,
+                                                    tr("Select an input OFF file"),
+                                                    openFileNameLabel,
+                                                    fileFilter,
+                                                    &selectedFilter);
+
+    // In case of Cancel
+    if (fileName.isEmpty())
+    {
+        return;
+    }
+
+    statusBar()->showMessage("Opening OFF file...");
+    if (fileName.endsWith(".off"))
+    {
+        viewer->openOffMesh(fileName);
+        statusBar()->showMessage("OFF file opened");
+    }
 }
 
 void Window::open3DImage()

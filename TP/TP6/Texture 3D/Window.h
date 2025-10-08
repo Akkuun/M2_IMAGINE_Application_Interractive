@@ -22,6 +22,7 @@ private:
 
 public slots:
     void open3DImage();
+    void openOFFFile();
   };
 
 
